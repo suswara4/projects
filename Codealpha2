@@ -1,0 +1,37 @@
+import librosa
+import librosa.display
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Conv1D, LSTM, Flatten
+from sklearn.model_selection import train_test_split
+
+# Load dataset (Assume dataset contains speech files with labels)
+def extract_features(file_path):
+    audio, sr = librosa.load(file_path, duration=3, offset=0.5)
+    mfccs = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=40)
+    return np.mean(mfccs.T, axis=0)
+
+# Load dataset (Assuming we have a CSV with file paths and labels)
+data = pd.read_csv("speech_data.csv")
+X = np.array([extract_features(fp) for fp in data['file_path']])
+y = np.array(data['emotion_label'])
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Build model
+model = Sequential([
+    Dense(128, activation='relu', input_shape=(40,)),
+    Dense(64, activation='relu'),
+    Dense(len(set(y)), activation='softmax')  # Multi-class classification
+])
+
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+# Train model
+model.fit(X_train, y_train, epochs=30, batch_size=32, validation_data=(X_test, y_test))
+
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print("Test Accuracy:", acc)
